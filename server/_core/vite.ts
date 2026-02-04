@@ -48,23 +48,41 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  // In production, the built server is in dist/index.js
-  // and the public files are in dist/public
+  // In production build:
+  // - Built server is at: dist/index.js (this file when running)
+  // - Static files are at: dist/public/*
+  // So from dist/index.js, public folder is at ./public
+  
   const distPath = path.resolve(import.meta.dirname, "public");
   
-  console.log(`[Static Files] Attempting to serve from: ${distPath}`);
+  console.log(`[Static Files] NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`[Static Files] __dirname: ${import.meta.dirname}`);
+  console.log(`[Static Files] Serving from: ${distPath}`);
   console.log(`[Static Files] Directory exists: ${fs.existsSync(distPath)}`);
+  
+  if (fs.existsSync(distPath)) {
+    const files = fs.readdirSync(distPath);
+    console.log(`[Static Files] Files in directory:`, files);
+  }
   
   if (!fs.existsSync(distPath)) {
     console.error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`
+      `[Static Files] ERROR: Could not find the build directory: ${distPath}`
     );
+    console.error(`[Static Files] Make sure to run 'pnpm build' first`);
   }
 
-  app.use(express.static(distPath));
+  // Serve static files with proper MIME types
+  app.use(express.static(distPath, {
+    maxAge: '1y',
+    etag: true,
+    lastModified: true,
+  }));
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+    const indexPath = path.resolve(distPath, "index.html");
+    console.log(`[Static Files] Serving index.html from: ${indexPath}`);
+    res.sendFile(indexPath);
   });
 }
